@@ -1,0 +1,2336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TVM Calculator — BS3210: Finance for Engineers</title>
+  <meta name="description" content="Time Value of Money Calculator for BS3210: Finance for Engineers, Designers and Professionals. Includes Future Value, Present Value, Simple Interest, Compound Interest, EMI, Amortization Schedule, and Scenario Analysis." />
+  <style>
+    /* ===================================================
+       DESIGN TOKENS & RESET
+    =================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #1a3a5c;
+      --navy-dark:   #122840;
+      --navy-light:  #254e78;
+      --accent:      #1a6bbb;
+      --accent-hover:#1557a0;
+      --bg:          #f4f6f9;
+      --surface:     #ffffff;
+      --border:      #d0d7e3;
+      --border-light:#e8ecf3;
+      --text-primary:#1a202c;
+      --text-secondary:#4a5568;
+      --text-muted:  #718096;
+      --error:       #c53030;
+      --error-bg:    #fff5f5;
+      --success:     #276749;
+      --warn:        #744210;
+      --font: "Inter", "Segoe UI", Arial, sans-serif;
+      --radius:      8px;
+      --shadow-sm:   0 1px 3px rgba(0,0,0,.08);
+      --shadow-md:   0 4px 12px rgba(0,0,0,.10);
+      --sidebar-w:   220px;
+      --header-h:    56px;
+      --transition:  0.15s ease;
+    }
+
+    html { font-size: 15px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ===================================================
+       LAYOUT
+    =================================================== */
+    .app-header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--navy);
+      color: #fff;
+      display: flex; align-items: center;
+      padding: 0 1.5rem;
+      gap: 1rem;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .app-header .logo { font-size: 1.15rem; font-weight: 700; letter-spacing: -.3px; }
+    .app-header .subtitle {
+      font-size: .75rem; color: rgba(255,255,255,.65);
+      font-weight: 400; margin-left: .5rem;
+    }
+    .hamburger {
+      display: none; background: none; border: none;
+      color: #fff; font-size: 1.4rem; cursor: pointer;
+      margin-left: auto; padding: .25rem .4rem;
+    }
+
+    .app-body {
+      display: flex;
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 90;
+      transition: transform var(--transition);
+    }
+    .sidebar-nav { padding: .75rem 0; }
+    .nav-item {
+      display: flex; align-items: center;
+      padding: .65rem 1.25rem;
+      font-size: .84rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+      user-select: none;
+      gap: .6rem;
+    }
+    .nav-item:hover { background: var(--bg); color: var(--navy); }
+    .nav-item.active {
+      background: #eef4fb;
+      color: var(--accent);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+    .nav-item .nav-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px;
+      background: var(--border-light);
+      border-radius: 50%;
+      font-size: .7rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .nav-item.active .nav-num { background: var(--accent); color: #fff; }
+
+    /* Main panel */
+    .main-panel {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 1.5rem;
+      max-width: 1000px;
+    }
+
+    /* ===================================================
+       CARDS
+    =================================================== */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card-title {
+      font-size: 1rem; font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 1.25rem;
+      padding-bottom: .6rem;
+      border-bottom: 1px solid var(--border-light);
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .card-title .calc-badge {
+      font-size: .7rem; font-weight: 600;
+      background: var(--accent); color: #fff;
+      padding: .15rem .5rem; border-radius: 999px;
+    }
+
+    /* ===================================================
+       FORM ELEMENTS
+    =================================================== */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: .25rem; }
+    .form-group label {
+      font-size: .8rem; font-weight: 600;
+      color: var(--text-secondary); letter-spacing: .02em;
+    }
+    .form-group label .required { color: var(--error); margin-left: .15rem; }
+
+    .input-wrap { position: relative; }
+    .input-prefix {
+      position: absolute; left: .65rem; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted); font-size: .85rem; pointer-events: none;
+    }
+    .input-suffix {
+      position: absolute; right: .65rem; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted); font-size: .8rem; pointer-events: none;
+    }
+    input[type="number"], select {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: .9rem;
+      color: var(--text-primary);
+      background: var(--surface);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      appearance: none;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(26,107,187,.15);
+    }
+    input.has-prefix { padding-left: 1.8rem; }
+    input.has-suffix { padding-right: 2.5rem; }
+    input.error { border-color: var(--error); background: var(--error-bg); }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23718096'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .75rem center;
+      padding-right: 2rem;
+      cursor: pointer;
+    }
+
+    .field-hint {
+      font-size: .75rem; color: var(--text-muted);
+      min-height: 1rem; line-height: 1.4;
+    }
+    .field-error {
+      font-size: .75rem; color: var(--error);
+      min-height: 1rem; display: none; line-height: 1.4;
+    }
+    .field-error.visible { display: block; }
+
+    /* Time toggle */
+    .time-input-group { display: flex; gap: .5rem; align-items: flex-start; }
+    .time-input-group .time-field { flex: 1; }
+    .toggle-group {
+      display: flex; border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden;
+      height: 34px; align-self: flex-end;
+      margin-bottom: 0;
+    }
+    .toggle-btn {
+      padding: 0 .75rem;
+      font-size: .78rem; font-weight: 600;
+      background: var(--bg); color: var(--text-muted);
+      border: none; cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .toggle-btn.active { background: var(--accent); color: #fff; }
+    .toggle-btn:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    /* Buttons */
+    .btn-group { display: flex; gap: .5rem; margin-top: 1.25rem; flex-wrap: wrap; }
+    .btn {
+      padding: .55rem 1.25rem;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: .85rem; font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background var(--transition), transform .08s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-sm { padding: .35rem .9rem; font-size: .8rem; }
+
+    /* ===================================================
+       RESULTS
+    =================================================== */
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .result-card {
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .result-card.highlight {
+      background: #eef4fb;
+      border-color: #b8d1ef;
+    }
+    .result-label {
+      font-size: .75rem; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .05em;
+      margin-bottom: .35rem;
+    }
+    .result-value {
+      font-size: 1.25rem; font-weight: 700;
+      color: var(--navy);
+      word-break: break-all;
+    }
+    .result-sub {
+      font-size: .75rem; color: var(--text-muted);
+      margin-top: .2rem;
+    }
+
+    /* Placeholder when no result */
+    .result-placeholder {
+      text-align: center; padding: 2rem 1rem;
+      color: var(--text-muted); font-size: .9rem;
+    }
+    .result-placeholder svg { display: block; margin: 0 auto 1rem; opacity: .35; }
+
+    /* ===================================================
+       AMORTIZATION TABLE
+    =================================================== */
+    .table-scroll {
+      max-height: 480px; overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-top: 1rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    thead th {
+      background: var(--navy);
+      color: #fff;
+      padding: .6rem .75rem;
+      text-align: right;
+      font-weight: 600;
+      position: sticky; top: 0; z-index: 2;
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: center; }
+    tbody tr:nth-child(even) { background: var(--bg); }
+    tbody tr:hover { background: #eef4fb; }
+    tbody td {
+      padding: .5rem .75rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border-light);
+      white-space: nowrap;
+    }
+    tbody td:first-child { text-align: center; font-weight: 600; color: var(--text-secondary); }
+    tfoot td {
+      padding: .6rem .75rem;
+      text-align: right;
+      font-weight: 700;
+      background: #f0f4fa;
+      border-top: 2px solid var(--border);
+    }
+    tfoot td:first-child { text-align: center; }
+
+    /* ===================================================
+       CHARTS
+    =================================================== */
+    .chart-wrap {
+      margin-top: 1.25rem;
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .chart-title {
+      font-size: .82rem; font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: .75rem;
+    }
+    canvas { display: block; max-width: 100%; }
+
+    /* EMI donut */
+    .emi-charts { display: grid; grid-template-columns: 180px 1fr; gap: 1.25rem; align-items: center; }
+    .donut-legend { display: flex; flex-direction: column; gap: .5rem; }
+    .legend-item { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ===================================================
+       SCENARIO TABLE
+    =================================================== */
+    .scenario-tag {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: #eef4fb; border: 1px solid #b8d1ef;
+      border-radius: 999px;
+      padding: .2rem .65rem;
+      font-size: .78rem; font-weight: 600;
+      color: var(--accent);
+      margin: .2rem;
+    }
+    .scenario-tag .remove-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: .9rem; line-height: 1;
+      padding: 0 0 0 .1rem;
+      transition: color var(--transition);
+    }
+    .scenario-tag .remove-btn:hover { color: var(--error); }
+    .best-loan { background: #f0fff4; border-left: 3px solid #276749; }
+    .best-invest { background: #fffbeb; border-left: 3px solid #b45309; }
+
+    /* ===================================================
+       SECTION VISIBILITY
+    =================================================== */
+    .calc-section { display: none; }
+    .calc-section.active { display: block; }
+
+    /* ===================================================
+       COMPARISON TABLE
+    =================================================== */
+    .compare-table-wrap { overflow-x: auto; margin-top: 1rem; }
+    .compare-table thead th { background: var(--navy-dark); }
+
+    /* ===================================================
+       RESPONSIVE
+    =================================================== */
+    @media (max-width: 720px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar {
+        transform: translateX(-220px);
+        width: 220px;
+        box-shadow: var(--shadow-md);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main-panel { margin-left: 0; }
+      .hamburger { display: block; }
+      .form-grid { grid-template-columns: 1fr; }
+      .emi-charts { grid-template-columns: 1fr; }
+    }
+
+    /* ===================================================
+       PRINT STYLES
+    =================================================== */
+    @media print {
+      .app-header, .sidebar, .hamburger, .btn, .btn-group,
+      .nav-item, .scenario-add-row { display: none !important; }
+      .main-panel { margin-left: 0 !important; padding: 0 !important; }
+      .calc-section { display: block !important; }
+      .card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
+      table { font-size: .72rem; }
+      thead { display: table-header-group; }
+      .table-scroll { max-height: none !important; overflow: visible !important; }
+      .print-header {
+        display: block !important;
+        font-size: .8rem; color: #555;
+        margin-bottom: .5rem;
+      }
+      body::before {
+        content: "BS3210 Finance for Engineers — TVM Calculator — Printed: " attr(data-print-date);
+        display: block; font-size: .75rem; color: #777;
+        padding-bottom: .5rem; border-bottom: 1px solid #ccc; margin-bottom: 1rem;
+      }
+    }
+    .print-header { display: none; }
+
+    /* ===================================================
+       UTILITIES
+    =================================================== */
+    .mt-1 { margin-top: .5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .text-muted { color: var(--text-muted); font-size: .8rem; }
+    .divider { border: none; border-top: 1px solid var(--border-light); margin: 1rem 0; }
+    .inline-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.3); z-index: 85;
+    }
+    .overlay.open { display: block; }
+  </style>
+</head>
+<body data-print-date="">
+
+<!-- ====================================================
+     HEADER
+==================================================== -->
+<header class="app-header" role="banner">
+  <span class="logo">TVM Calculator</span>
+  <span class="subtitle">BS3210: Finance for Engineers, Designers and Professionals</span>
+  <button class="hamburger" id="hamburgerBtn" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">&#9776;</button>
+</header>
+
+<div class="overlay" id="overlay" role="presentation" aria-hidden="true"></div>
+
+<div class="app-body">
+  <!-- ====================================================
+       SIDEBAR
+  ==================================================== -->
+  <nav class="sidebar" id="sidebar" aria-label="Calculator navigation">
+    <div class="sidebar-nav" role="list">
+      <div class="nav-item active" role="listitem" data-tab="fv" tabindex="0" aria-current="page">
+        <span class="nav-num">1</span> Future Value
+      </div>
+      <div class="nav-item" role="listitem" data-tab="pv" tabindex="0">
+        <span class="nav-num">2</span> Present Value
+      </div>
+      <div class="nav-item" role="listitem" data-tab="si" tabindex="0">
+        <span class="nav-num">3</span> Simple Interest
+      </div>
+      <div class="nav-item" role="listitem" data-tab="ci" tabindex="0">
+        <span class="nav-num">4</span> Compound Interest
+      </div>
+      <div class="nav-item" role="listitem" data-tab="emi" tabindex="0">
+        <span class="nav-num">5</span> EMI Calculator
+      </div>
+      <div class="nav-item" role="listitem" data-tab="amort" tabindex="0">
+        <span class="nav-num">6</span> Amortization
+      </div>
+      <div class="nav-item" role="listitem" data-tab="scenario" tabindex="0">
+        <span class="nav-num">7</span> Scenario Analysis
+      </div>
+    </div>
+  </nav>
+
+  <!-- ====================================================
+       MAIN PANEL
+  ==================================================== -->
+  <main class="main-panel" id="mainPanel" role="main">
+
+    <!-- ===================== 1. FUTURE VALUE ===================== -->
+    <section class="calc-section active" id="section-fv" aria-labelledby="fv-title">
+      <div class="card">
+        <h1 class="card-title" id="fv-title">
+          <span class="calc-badge">1</span> Future Value Calculator
+        </h1>
+        <div class="form-grid">
+          <!-- Principal -->
+          <div class="form-group">
+            <label for="fv-principal">Principal Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="fv-principal" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 100000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="fv-principal-hint"></span>
+            <span class="field-error" id="fv-principal-err" role="alert"></span>
+          </div>
+          <!-- Rate -->
+          <div class="form-group">
+            <label for="fv-rate">Annual Interest Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="fv-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 10" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="fv-rate-err" role="alert"></span>
+          </div>
+          <!-- Time -->
+          <div class="form-group">
+            <label for="fv-time">Time Period<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="fv-time" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="0.01" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Time unit">
+                <button class="toggle-btn active" data-target="fv-time" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="fv-time" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="fv-time-err" role="alert"></span>
+          </div>
+          <!-- Compounding -->
+          <div class="form-group">
+            <label for="fv-freq">Compounding Frequency</label>
+            <select id="fv-freq">
+              <option value="1">Annual (1×/yr)</option>
+              <option value="2">Semi-annual (2×/yr)</option>
+              <option value="4">Quarterly (4×/yr)</option>
+              <option value="12" selected>Monthly (12×/yr)</option>
+              <option value="365">Daily (365×/yr)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="fv-calc-btn" type="button">Calculate</button>
+          <button class="btn btn-secondary" id="fv-reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+      <!-- Results -->
+      <div class="card" id="fv-results">
+        <h2 class="card-title">Results</h2>
+        <div id="fv-result-content">
+          <div class="result-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+            </svg>
+            Enter values above and click Calculate.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 2. PRESENT VALUE ===================== -->
+    <section class="calc-section" id="section-pv" aria-labelledby="pv-title">
+      <div class="card">
+        <h1 class="card-title" id="pv-title">
+          <span class="calc-badge">2</span> Present Value Calculator
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pv-fv">Future Value (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="pv-fv" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 100000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="pv-fv-hint"></span>
+            <span class="field-error" id="pv-fv-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="pv-rate">Discount Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="pv-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 10" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="pv-rate-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="pv-time">Time Period<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="pv-time" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="0.01" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Time unit">
+                <button class="toggle-btn active" data-target="pv-time" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="pv-time" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="pv-time-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="pv-freq">Compounding Frequency</label>
+            <select id="pv-freq">
+              <option value="1">Annual (1×/yr)</option>
+              <option value="2">Semi-annual (2×/yr)</option>
+              <option value="4">Quarterly (4×/yr)</option>
+              <option value="12" selected>Monthly (12×/yr)</option>
+              <option value="365">Daily (365×/yr)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="pv-calc-btn" type="button">Calculate</button>
+          <button class="btn btn-secondary" id="pv-reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="card" id="pv-results">
+        <h2 class="card-title">Results</h2>
+        <div id="pv-result-content">
+          <div class="result-placeholder">Enter values above and click Calculate.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 3. SIMPLE INTEREST ===================== -->
+    <section class="calc-section" id="section-si" aria-labelledby="si-title">
+      <div class="card">
+        <h1 class="card-title" id="si-title">
+          <span class="calc-badge">3</span> Simple Interest Calculator
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="si-principal">Principal Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="si-principal" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 100000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="si-principal-hint"></span>
+            <span class="field-error" id="si-principal-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="si-rate">Annual Interest Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="si-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 8" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="si-rate-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="si-time">Time Period<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="si-time" inputmode="decimal"
+                       placeholder="e.g. 3" min="0" step="0.01" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Time unit">
+                <button class="toggle-btn active" data-target="si-time" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="si-time" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="si-time-err" role="alert"></span>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="si-calc-btn" type="button">Calculate</button>
+          <button class="btn btn-secondary" id="si-reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="card" id="si-results">
+        <h2 class="card-title">Results</h2>
+        <div id="si-result-content">
+          <div class="result-placeholder">Enter values above and click Calculate.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 4. COMPOUND INTEREST ===================== -->
+    <section class="calc-section" id="section-ci" aria-labelledby="ci-title">
+      <div class="card">
+        <h1 class="card-title" id="ci-title">
+          <span class="calc-badge">4</span> Compound Interest Calculator
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ci-principal">Principal Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="ci-principal" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 100000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="ci-principal-hint"></span>
+            <span class="field-error" id="ci-principal-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="ci-rate">Annual Interest Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="ci-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 10" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="ci-rate-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="ci-time">Time Period<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="ci-time" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="0.01" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Time unit">
+                <button class="toggle-btn active" data-target="ci-time" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="ci-time" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="ci-time-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="ci-freq">Compounding Frequency</label>
+            <select id="ci-freq">
+              <option value="1">Annual (1×/yr)</option>
+              <option value="2">Semi-annual (2×/yr)</option>
+              <option value="4">Quarterly (4×/yr)</option>
+              <option value="12" selected>Monthly (12×/yr)</option>
+              <option value="365">Daily (365×/yr)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="ci-calc-btn" type="button">Calculate</button>
+          <button class="btn btn-secondary" id="ci-reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="card" id="ci-results">
+        <h2 class="card-title">Results</h2>
+        <div id="ci-result-content">
+          <div class="result-placeholder">Enter values above and click Calculate.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 5. EMI ===================== -->
+    <section class="calc-section" id="section-emi" aria-labelledby="emi-title">
+      <div class="card">
+        <h1 class="card-title" id="emi-title">
+          <span class="calc-badge">5</span> EMI Calculator
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="emi-principal">Loan Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="emi-principal" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 1000000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="emi-principal-hint"></span>
+            <span class="field-error" id="emi-principal-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="emi-rate">Annual Interest Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="emi-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 10" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="emi-rate-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="emi-tenure">Loan Tenure<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="emi-tenure" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="1" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Tenure unit">
+                <button class="toggle-btn active" data-target="emi-tenure" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="emi-tenure" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="emi-tenure-err" role="alert"></span>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="emi-calc-btn" type="button">Calculate</button>
+          <button class="btn btn-secondary" id="emi-reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="card" id="emi-results">
+        <h2 class="card-title">Results</h2>
+        <div id="emi-result-content">
+          <div class="result-placeholder">Enter values above and click Calculate.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 6. AMORTIZATION ===================== -->
+    <section class="calc-section" id="section-amort" aria-labelledby="amort-title">
+      <div class="card">
+        <h1 class="card-title" id="amort-title">
+          <span class="calc-badge">6</span> Loan Amortization Schedule
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="amort-principal">Loan Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="amort-principal" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 1000000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="amort-principal-hint"></span>
+            <span class="field-error" id="amort-principal-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="amort-rate">Annual Interest Rate<span class="required">*</span></label>
+            <div class="input-wrap">
+              <input type="number" id="amort-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 10" min="0" max="100" step="0.01" autocomplete="off" />
+              <span class="input-suffix">% p.a.</span>
+            </div>
+            <span class="field-hint"></span>
+            <span class="field-error" id="amort-rate-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="amort-tenure">Loan Tenure<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="amort-tenure" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="1" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Tenure unit">
+                <button class="toggle-btn active" data-target="amort-tenure" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="amort-tenure" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="amort-tenure-err" role="alert"></span>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="amort-calc-btn" type="button">Generate Schedule</button>
+          <button class="btn btn-secondary" id="amort-reset-btn" type="button">Reset</button>
+          <button class="btn btn-secondary btn-sm" id="amort-export-btn" type="button" style="display:none">Export CSV</button>
+          <button class="btn btn-secondary btn-sm" id="amort-print-btn" type="button" style="display:none">Print / Save PDF</button>
+        </div>
+      </div>
+      <div id="amort-results" style="display:none">
+        <div class="card">
+          <h2 class="card-title">Summary</h2>
+          <div id="amort-summary-content"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Balance over Time</h2>
+          <div class="chart-wrap">
+            <canvas id="amort-chart" height="200"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Amortization Schedule</h2>
+          <div id="amort-table-content"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 7. SCENARIO ANALYSIS ===================== -->
+    <section class="calc-section" id="section-scenario" aria-labelledby="scenario-title">
+      <div class="card">
+        <h1 class="card-title" id="scenario-title">
+          <span class="calc-badge">7</span> Scenario Analysis
+        </h1>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="sc-amount">Amount (₹)<span class="required">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="sc-amount" class="has-prefix" inputmode="decimal"
+                     placeholder="e.g. 1000000" min="0" max="100000000000" autocomplete="off" />
+            </div>
+            <span class="field-hint" id="sc-amount-hint"></span>
+            <span class="field-error" id="sc-amount-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="sc-tenure">Tenure<span class="required">*</span></label>
+            <div class="time-input-group">
+              <div class="time-field">
+                <input type="number" id="sc-tenure" inputmode="decimal"
+                       placeholder="e.g. 5" min="0" step="0.01" autocomplete="off" />
+              </div>
+              <div class="toggle-group" role="group" aria-label="Tenure unit">
+                <button class="toggle-btn active" data-target="sc-tenure" data-unit="years" type="button">Yrs</button>
+                <button class="toggle-btn" data-target="sc-tenure" data-unit="months" type="button">Mos</button>
+              </div>
+            </div>
+            <span class="field-error" id="sc-tenure-err" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="sc-freq">Compounding Frequency</label>
+            <select id="sc-freq">
+              <option value="1">Annual (1×/yr)</option>
+              <option value="2">Semi-annual (2×/yr)</option>
+              <option value="4">Quarterly (4×/yr)</option>
+              <option value="12" selected>Monthly (12×/yr)</option>
+              <option value="365">Daily (365×/yr)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Rate tags + add -->
+        <hr class="divider" />
+        <div class="form-group">
+          <label>Interest Rate Scenarios</label>
+          <div id="sc-rate-tags" class="mt-1"></div>
+          <div class="scenario-add-row inline-row mt-1">
+            <div style="position:relative; width:130px;">
+              <input type="number" id="sc-custom-rate" class="has-suffix" inputmode="decimal"
+                     placeholder="e.g. 7.5" min="0" max="100" step="0.1" autocomplete="off"
+                     style="width:100%; padding:.4rem .75rem; padding-right:2.5rem;" />
+              <span class="input-suffix">%</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="sc-add-rate-btn" type="button">+ Add Rate</button>
+            <span class="field-error" id="sc-rate-err" role="alert" style="display:inline-block"></span>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" id="sc-calc-btn" type="button">Analyse</button>
+          <button class="btn btn-secondary" id="sc-reset-btn" type="button">Reset</button>
+          <button class="btn btn-secondary btn-sm" id="sc-export-btn" type="button" style="display:none">Export CSV</button>
+          <button class="btn btn-secondary btn-sm" id="sc-print-btn" type="button" style="display:none">Print / Save PDF</button>
+        </div>
+      </div>
+      <div id="sc-results" style="display:none">
+        <div class="card">
+          <h2 class="card-title">Loan Comparison</h2>
+          <div id="sc-loan-content"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Investment Comparison</h2>
+          <div id="sc-invest-content"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Scenario Chart</h2>
+          <div class="chart-wrap">
+            <canvas id="sc-chart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- end main-panel -->
+</div>
+
+<script>
+/* ===================================================================
+   TVM CALCULATOR — BS3210
+   Architecture:
+     1. PURE CALCULATION FUNCTIONS  — no DOM access whatsoever
+     2. FORMATTING UTILITIES
+     3. VALIDATION HELPERS
+     4. UI CONTROLLER (tabs, events, rendering)
+     5. SELF-TEST SUITE (runSelfTests — callable from console)
+=================================================================== */
+
+'use strict';
+
+/* -------------------------------------------------------------------
+   1. PURE CALCULATION FUNCTIONS
+------------------------------------------------------------------- */
+
+/**
+ * Future Value
+ * FV = P * (1 + r/m)^(m*t)
+ * @param {number} P   Principal
+ * @param {number} r   Annual rate as decimal (e.g. 0.10 for 10%)
+ * @param {number} t   Time in years
+ * @param {number} m   Compounding periods per year
+ * @returns {{ fv: number, gain: number }}
+ */
+function calcFV(P, r, t, m) {
+  const fv = P * Math.pow(1 + r / m, m * t);
+  return { fv, gain: fv - P };
+}
+
+/**
+ * Present Value
+ * PV = FV / (1 + r/m)^(m*t)
+ * @param {number} FV  Future value
+ * @param {number} r   Annual rate as decimal
+ * @param {number} t   Time in years
+ * @param {number} m   Compounding periods per year
+ * @returns {{ pv: number, discount: number }}
+ */
+function calcPV(FV, r, t, m) {
+  const pv = FV / Math.pow(1 + r / m, m * t);
+  return { pv, discount: FV - pv };
+}
+
+/**
+ * Simple Interest
+ * SI = P * r * t    (t in years)
+ * @param {number} P  Principal
+ * @param {number} r  Annual rate as decimal
+ * @param {number} t  Time in years
+ * @returns {{ si: number, maturity: number }}
+ */
+function calcSI(P, r, t) {
+  const si = P * r * t;
+  return { si, maturity: P + si };
+}
+
+/**
+ * Compound Interest
+ * A = P * (1 + r/m)^(m*t)
+ * @param {number} P  Principal
+ * @param {number} r  Annual rate as decimal
+ * @param {number} t  Time in years
+ * @param {number} m  Compounding periods per year
+ * @returns {{ ci: number, maturity: number, si: number }}
+ */
+function calcCI(P, r, t, m) {
+  const maturity = P * Math.pow(1 + r / m, m * t);
+  const ci = maturity - P;
+  const si = P * r * t;
+  return { ci, maturity, si };
+}
+
+/**
+ * EMI Calculation
+ * EMI = P * i * (1+i)^n / ((1+i)^n - 1)
+ * Special: if r == 0, EMI = P / n
+ * @param {number} P  Loan principal
+ * @param {number} r  Annual rate as decimal
+ * @param {number} n  Tenure in months (integer)
+ * @returns {{ emi: number, totalPayment: number, totalInterest: number }}
+ */
+function calcEMI(P, r, n) {
+  let emi;
+  if (r === 0) {
+    emi = P / n;
+  } else {
+    const i = r / 12;
+    const pow = Math.pow(1 + i, n);
+    emi = P * i * pow / (pow - 1);
+  }
+  const totalPayment = emi * n;
+  return { emi, totalPayment, totalInterest: totalPayment - P };
+}
+
+/**
+ * Amortization Schedule
+ * Returns array of monthly rows with exact zero final balance.
+ * @param {number} P  Loan principal
+ * @param {number} r  Annual rate as decimal
+ * @param {number} n  Tenure in months (integer)
+ * @returns {Array<{month, opening, interest, principal, emi, closing}>}
+ */
+function calcAmortization(P, r, n) {
+  const { emi } = calcEMI(P, r, n);
+  const i = r === 0 ? 0 : r / 12;
+  const rows = [];
+  let balance = P;
+
+  for (let month = 1; month <= n; month++) {
+    const interest = balance * i;
+    let principalPaid = emi - interest;
+    let closing = balance - principalPaid;
+
+    // Final month adjustment: force closing to exactly 0
+    if (month === n) {
+      principalPaid = balance;
+      closing = 0;
+    }
+
+    rows.push({
+      month,
+      opening: balance,
+      interest,
+      principal: principalPaid,
+      emi,
+      closing: closing < 0 ? 0 : closing
+    });
+    balance = closing < 0 ? 0 : closing;
+  }
+  return rows;
+}
+
+/**
+ * Scenario Analysis — compute for a single rate
+ * @param {number} amount   Principal / Loan amount
+ * @param {number} rate     Annual rate as decimal
+ * @param {number} tenureYears  Tenure in years
+ * @param {number} m        Compounding frequency
+ * @returns {{ rate, emi, totalPayment, totalInterest, fv, gain }}
+ */
+function calcScenario(amount, rate, tenureYears, m) {
+  const n = Math.round(tenureYears * 12); // months
+  const emiData = calcEMI(amount, rate, n);
+  const fvData  = calcFV(amount, rate, tenureYears, m);
+  return {
+    rate,
+    emi:           emiData.emi,
+    totalPayment:  emiData.totalPayment,
+    totalInterest: emiData.totalInterest,
+    fv:            fvData.fv,
+    gain:          fvData.gain
+  };
+}
+
+/* -------------------------------------------------------------------
+   2. FORMATTING UTILITIES
+------------------------------------------------------------------- */
+
+/** INR formatter — Indian digit grouping */
+const inrFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const inrFmtShort = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+
+function formatINR(val) {
+  if (!isFinite(val)) return '—';
+  return inrFmt.format(val);
+}
+
+function formatNum(val) {
+  if (!isFinite(val)) return '—';
+  return inrFmtShort.format(val);
+}
+
+/** Convert a raw number to lakh/crore label */
+function lakhLabel(val) {
+  if (!val || !isFinite(val) || val <= 0) return '';
+  const formatted = inrFmtShort.format(val);
+  if (val >= 1e7) return `${formatted} = ${(val / 1e7).toFixed(2)} Crore`;
+  if (val >= 1e5) return `${formatted} = ${(val / 1e5).toFixed(2)} Lakh`;
+  if (val >= 1e3) return `${formatted} = ${(val / 1e3).toFixed(2)} Thousand`;
+  return formatted;
+}
+
+/** Format rate as "10.00%" */
+function fmtRate(r) { return (r * 100).toFixed(2) + '%'; }
+
+/** CSV raw number (no ₹, no grouping commas) */
+function csvNum(val) { return isFinite(val) ? val.toFixed(2) : ''; }
+
+/** UTF-8 BOM for Excel */
+const UTF8_BOM = '\uFEFF';
+
+function downloadCSV(filename, csvContent) {
+  const blob = new Blob([UTF8_BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+/* -------------------------------------------------------------------
+   3. VALIDATION HELPERS
+------------------------------------------------------------------- */
+
+/**
+ * Parse and validate an amount field.
+ * Strips ₹, commas, spaces, then checks bounds.
+ * Returns { value, error } — error is null on success.
+ */
+function parseAmount(raw) {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return { value: null, error: 'This field is required.' };
+  const cleaned = String(raw).replace(/[₹,\s]/g, '');
+  const val = parseFloat(cleaned);
+  if (!isFinite(val) || isNaN(val)) return { value: null, error: 'Enter a valid number.' };
+  if (val <= 0) return { value: null, error: 'Amount must be greater than zero.' };
+  if (val > 1e10) return { value: null, error: 'Amount cannot exceed ₹1,000 crore.' };
+  return { value: val, error: null };
+}
+
+function parseRate(raw) {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return { value: null, error: 'This field is required.' };
+  const val = parseFloat(String(raw).replace(/[%,\s]/g, ''));
+  if (!isFinite(val) || isNaN(val)) return { value: null, error: 'Enter a valid percentage.' };
+  if (val < 0) return { value: null, error: 'Rate cannot be negative.' };
+  if (val > 100) return { value: null, error: 'Rate cannot exceed 100%.' };
+  return { value: val / 100, error: null }; // return as decimal
+}
+
+function parseTime(raw, unit) {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return { years: null, months: null, error: 'This field is required.' };
+  const val = parseFloat(String(raw).replace(/[,\s]/g, ''));
+  if (!isFinite(val) || isNaN(val)) return { years: null, months: null, error: 'Enter a valid number.' };
+  if (val <= 0) return { years: null, months: null, error: 'Time must be greater than zero.' };
+
+  let years, months;
+  if (unit === 'months') {
+    months = val;
+    years  = val / 12;
+    if (years > 50) return { years: null, months: null, error: 'Tenure cannot exceed 50 years (600 months).' };
+  } else {
+    years  = val;
+    months = val * 12;
+    if (years > 50) return { years: null, months: null, error: 'Tenure cannot exceed 50 years.' };
+  }
+  return { years, months, error: null };
+}
+
+/** Show/hide a field error span */
+function setFieldError(errElId, msg) {
+  const el = document.getElementById(errElId);
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.classList.add('visible'); }
+  else      { el.textContent = ''; el.classList.remove('visible'); }
+}
+
+function setInputError(inputId, hasError) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  if (hasError) el.classList.add('error');
+  else          el.classList.remove('error');
+}
+
+/* -------------------------------------------------------------------
+   4. UI CONTROLLER
+------------------------------------------------------------------- */
+
+/* --- Tab switching --- */
+const navItems = document.querySelectorAll('.nav-item');
+const sections = document.querySelectorAll('.calc-section');
+
+function switchTab(tabId) {
+  navItems.forEach(n => {
+    const isActive = n.dataset.tab === tabId;
+    n.classList.toggle('active', isActive);
+    n.setAttribute('aria-current', isActive ? 'page' : 'false');
+  });
+  sections.forEach(s => {
+    s.classList.toggle('active', s.id === 'section-' + tabId);
+  });
+  // Close sidebar on mobile
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+  hamburgerBtn.setAttribute('aria-expanded', 'false');
+}
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => switchTab(item.dataset.tab));
+  item.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') switchTab(item.dataset.tab); });
+});
+
+/* --- Hamburger / mobile sidebar --- */
+const sidebar      = document.getElementById('sidebar');
+const overlay      = document.getElementById('overlay');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+
+hamburgerBtn.addEventListener('click', () => {
+  const isOpen = sidebar.classList.toggle('open');
+  overlay.classList.toggle('open', isOpen);
+  hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
+});
+overlay.addEventListener('click', () => {
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+  hamburgerBtn.setAttribute('aria-expanded', 'false');
+});
+
+/* --- Time unit toggle state (per-calculator) --- */
+const timeUnits = {}; // key = inputId, value = 'years' | 'months'
+
+document.querySelectorAll('.toggle-group').forEach(group => {
+  const btns = group.querySelectorAll('.toggle-btn');
+  const targetId = btns[0].dataset.target;
+  timeUnits[targetId] = 'years'; // default
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      timeUnits[targetId] = btn.dataset.unit;
+      // Trigger recalculation for the relevant section
+      triggerCalc(targetId);
+    });
+  });
+});
+
+/** Figure out which section to recalculate based on input id */
+function triggerCalc(inputId) {
+  if      (inputId.startsWith('fv'))    debounce(calcAndRenderFV, 150)();
+  else if (inputId.startsWith('pv'))    debounce(calcAndRenderPV, 150)();
+  else if (inputId.startsWith('si'))    debounce(calcAndRenderSI, 150)();
+  else if (inputId.startsWith('ci'))    debounce(calcAndRenderCI, 150)();
+  else if (inputId.startsWith('emi'))   debounce(calcAndRenderEMI, 150)();
+  else if (inputId.startsWith('amort')) debounce(calcAndRenderAmort, 150)();
+  else if (inputId.startsWith('sc'))    debounce(calcAndRenderScenario, 150)();
+}
+
+/* --- Debounce factory --- */
+const _debounceTimers = {};
+function debounce(fn, delay) {
+  return function(...args) {
+    const key = fn.name || 'fn';
+    clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key] = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+/* --- Amount hint (lakh/crore) --- */
+function bindAmountHint(inputId, hintId) {
+  const input = document.getElementById(inputId);
+  const hint  = document.getElementById(hintId);
+  if (!input || !hint) return;
+  input.addEventListener('input', () => {
+    const val = parseFloat(String(input.value).replace(/[₹,\s]/g, ''));
+    hint.textContent = isFinite(val) && val > 0 ? lakhLabel(val) : '';
+  });
+}
+
+// Bind all amount hints
+bindAmountHint('fv-principal',    'fv-principal-hint');
+bindAmountHint('pv-fv',          'pv-fv-hint');
+bindAmountHint('si-principal',   'si-principal-hint');
+bindAmountHint('ci-principal',   'ci-principal-hint');
+bindAmountHint('emi-principal',  'emi-principal-hint');
+bindAmountHint('amort-principal','amort-principal-hint');
+bindAmountHint('sc-amount',      'sc-amount-hint');
+
+/* ===== RESULT PLACEHOLDERS (clear stale results when inputs change) === */
+function clearResult(contentId, message) {
+  const el = document.getElementById(contentId);
+  if (el) el.innerHTML = `<div class="result-placeholder">${message || 'Enter values above and click Calculate.'}</div>`;
+}
+
+/* ==========================================
+   FUTURE VALUE
+========================================== */
+function getInputVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function calcAndRenderFV() {
+  const pRaw    = getInputVal('fv-principal');
+  const rRaw    = getInputVal('fv-rate');
+  const tRaw    = getInputVal('fv-time');
+  const m       = parseInt(getInputVal('fv-freq')) || 12;
+  const timeUnit= timeUnits['fv-time'] || 'years';
+
+  const pRes = parseAmount(pRaw);
+  const rRes = parseRate(rRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('fv-principal-err', pRes.error); setInputError('fv-principal', !!pRes.error);
+  setFieldError('fv-rate-err',      rRes.error); setInputError('fv-rate',      !!rRes.error);
+  setFieldError('fv-time-err',      tRes.error); setInputError('fv-time',      !!tRes.error);
+
+  if (pRes.error || rRes.error || tRes.error) {
+    clearResult('fv-result-content');
+    return;
+  }
+  try {
+    const { fv, gain } = calcFV(pRes.value, rRes.value, tRes.years, m);
+    if (!isFinite(fv)) throw new Error('Result overflow');
+    const freqLabel = { 1:'Annual', 2:'Semi-annual', 4:'Quarterly', 12:'Monthly', 365:'Daily' }[m] || m + '×/yr';
+    document.getElementById('fv-result-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Future Value</div>
+          <div class="result-value">${formatINR(fv)}</div>
+          <div class="result-sub">FV = P × (1 + r/m)^(m×t)</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Principal</div>
+          <div class="result-value">${formatINR(pRes.value)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Gain</div>
+          <div class="result-value">${formatINR(gain)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Effective Rate</div>
+          <div class="result-value">${(rRes.value * 100).toFixed(2)}% p.a.</div>
+          <div class="result-sub">${freqLabel} compounding</div>
+        </div>
+      </div>`;
+  } catch(e) {
+    clearResult('fv-result-content', 'Calculation error: ' + e.message);
+  }
+}
+
+document.getElementById('fv-principal').addEventListener('input', debounce(calcAndRenderFV, 150));
+document.getElementById('fv-rate').addEventListener('input', debounce(calcAndRenderFV, 150));
+document.getElementById('fv-time').addEventListener('input', debounce(calcAndRenderFV, 150));
+document.getElementById('fv-freq').addEventListener('change', calcAndRenderFV);
+document.getElementById('fv-calc-btn').addEventListener('click', calcAndRenderFV);
+document.getElementById('fv-reset-btn').addEventListener('click', () => {
+  ['fv-principal','fv-rate','fv-time'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('error');
+  });
+  document.getElementById('fv-freq').value = '12';
+  ['fv-principal-err','fv-rate-err','fv-time-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('fv-principal-hint').textContent = '';
+  clearResult('fv-result-content');
+  // Reset toggle
+  document.querySelectorAll('[data-target="fv-time"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['fv-time'] = 'years';
+});
+
+/* ==========================================
+   PRESENT VALUE
+========================================== */
+function calcAndRenderPV() {
+  const fvRaw   = getInputVal('pv-fv');
+  const rRaw    = getInputVal('pv-rate');
+  const tRaw    = getInputVal('pv-time');
+  const m       = parseInt(getInputVal('pv-freq')) || 12;
+  const timeUnit= timeUnits['pv-time'] || 'years';
+
+  const fvRes = parseAmount(fvRaw);
+  const rRes  = parseRate(rRaw);
+  const tRes  = parseTime(tRaw, timeUnit);
+
+  setFieldError('pv-fv-err',   fvRes.error); setInputError('pv-fv',   !!fvRes.error);
+  setFieldError('pv-rate-err', rRes.error);  setInputError('pv-rate', !!rRes.error);
+  setFieldError('pv-time-err', tRes.error);  setInputError('pv-time', !!tRes.error);
+
+  if (fvRes.error || rRes.error || tRes.error) { clearResult('pv-result-content'); return; }
+  try {
+    const { pv, discount } = calcPV(fvRes.value, rRes.value, tRes.years, m);
+    if (!isFinite(pv)) throw new Error('Result overflow');
+    document.getElementById('pv-result-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Present Value</div>
+          <div class="result-value">${formatINR(pv)}</div>
+          <div class="result-sub">PV = FV / (1 + r/m)^(m×t)</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Future Value (Input)</div>
+          <div class="result-value">${formatINR(fvRes.value)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Discount Amount</div>
+          <div class="result-value">${formatINR(discount)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Discount Rate</div>
+          <div class="result-value">${(rRes.value * 100).toFixed(2)}% p.a.</div>
+        </div>
+      </div>`;
+  } catch(e) { clearResult('pv-result-content', 'Calculation error: ' + e.message); }
+}
+
+document.getElementById('pv-fv').addEventListener('input', debounce(calcAndRenderPV, 150));
+document.getElementById('pv-rate').addEventListener('input', debounce(calcAndRenderPV, 150));
+document.getElementById('pv-time').addEventListener('input', debounce(calcAndRenderPV, 150));
+document.getElementById('pv-freq').addEventListener('change', calcAndRenderPV);
+document.getElementById('pv-calc-btn').addEventListener('click', calcAndRenderPV);
+document.getElementById('pv-reset-btn').addEventListener('click', () => {
+  ['pv-fv','pv-rate','pv-time'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
+  document.getElementById('pv-freq').value = '12';
+  ['pv-fv-err','pv-rate-err','pv-time-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('pv-fv-hint').textContent = '';
+  clearResult('pv-result-content');
+  document.querySelectorAll('[data-target="pv-time"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['pv-time'] = 'years';
+});
+
+/* ==========================================
+   SIMPLE INTEREST
+========================================== */
+function calcAndRenderSI() {
+  const pRaw    = getInputVal('si-principal');
+  const rRaw    = getInputVal('si-rate');
+  const tRaw    = getInputVal('si-time');
+  const timeUnit= timeUnits['si-time'] || 'years';
+
+  const pRes = parseAmount(pRaw);
+  const rRes = parseRate(rRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('si-principal-err', pRes.error); setInputError('si-principal', !!pRes.error);
+  setFieldError('si-rate-err',      rRes.error); setInputError('si-rate',      !!rRes.error);
+  setFieldError('si-time-err',      tRes.error); setInputError('si-time',      !!tRes.error);
+
+  if (pRes.error || rRes.error || tRes.error) { clearResult('si-result-content'); return; }
+  try {
+    const { si, maturity } = calcSI(pRes.value, rRes.value, tRes.years);
+    if (!isFinite(si)) throw new Error('Result overflow');
+    document.getElementById('si-result-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Maturity Value</div>
+          <div class="result-value">${formatINR(maturity)}</div>
+          <div class="result-sub">P + SI</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Interest Earned (SI)</div>
+          <div class="result-value">${formatINR(si)}</div>
+          <div class="result-sub">P × r × t</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Principal</div>
+          <div class="result-value">${formatINR(pRes.value)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Duration</div>
+          <div class="result-value">${tRes.years.toFixed(4)} yrs</div>
+          <div class="result-sub">${tRes.months.toFixed(2)} months</div>
+        </div>
+      </div>`;
+  } catch(e) { clearResult('si-result-content', 'Calculation error: ' + e.message); }
+}
+
+document.getElementById('si-principal').addEventListener('input', debounce(calcAndRenderSI, 150));
+document.getElementById('si-rate').addEventListener('input', debounce(calcAndRenderSI, 150));
+document.getElementById('si-time').addEventListener('input', debounce(calcAndRenderSI, 150));
+document.getElementById('si-calc-btn').addEventListener('click', calcAndRenderSI);
+document.getElementById('si-reset-btn').addEventListener('click', () => {
+  ['si-principal','si-rate','si-time'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
+  ['si-principal-err','si-rate-err','si-time-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('si-principal-hint').textContent = '';
+  clearResult('si-result-content');
+  document.querySelectorAll('[data-target="si-time"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['si-time'] = 'years';
+});
+
+/* ==========================================
+   COMPOUND INTEREST
+========================================== */
+function calcAndRenderCI() {
+  const pRaw    = getInputVal('ci-principal');
+  const rRaw    = getInputVal('ci-rate');
+  const tRaw    = getInputVal('ci-time');
+  const m       = parseInt(getInputVal('ci-freq')) || 12;
+  const timeUnit= timeUnits['ci-time'] || 'years';
+
+  const pRes = parseAmount(pRaw);
+  const rRes = parseRate(rRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('ci-principal-err', pRes.error); setInputError('ci-principal', !!pRes.error);
+  setFieldError('ci-rate-err',      rRes.error); setInputError('ci-rate',      !!rRes.error);
+  setFieldError('ci-time-err',      tRes.error); setInputError('ci-time',      !!tRes.error);
+
+  if (pRes.error || rRes.error || tRes.error) { clearResult('ci-result-content'); return; }
+  try {
+    const { ci, maturity, si } = calcCI(pRes.value, rRes.value, tRes.years, m);
+    if (!isFinite(ci)) throw new Error('Result overflow');
+    const ciOverSI = si > 0 ? (ci - si) : 0;
+    document.getElementById('ci-result-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Maturity Value</div>
+          <div class="result-value">${formatINR(maturity)}</div>
+          <div class="result-sub">A = P × (1 + r/m)^(m×t)</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Compound Interest</div>
+          <div class="result-value">${formatINR(ci)}</div>
+          <div class="result-sub">A − P</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Simple Interest (same inputs)</div>
+          <div class="result-value">${formatINR(si)}</div>
+          <div class="result-sub">For comparison</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">CI − SI (Compounding Benefit)</div>
+          <div class="result-value">${formatINR(ciOverSI)}</div>
+        </div>
+      </div>`;
+  } catch(e) { clearResult('ci-result-content', 'Calculation error: ' + e.message); }
+}
+
+document.getElementById('ci-principal').addEventListener('input', debounce(calcAndRenderCI, 150));
+document.getElementById('ci-rate').addEventListener('input', debounce(calcAndRenderCI, 150));
+document.getElementById('ci-time').addEventListener('input', debounce(calcAndRenderCI, 150));
+document.getElementById('ci-freq').addEventListener('change', calcAndRenderCI);
+document.getElementById('ci-calc-btn').addEventListener('click', calcAndRenderCI);
+document.getElementById('ci-reset-btn').addEventListener('click', () => {
+  ['ci-principal','ci-rate','ci-time'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
+  document.getElementById('ci-freq').value = '12';
+  ['ci-principal-err','ci-rate-err','ci-time-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('ci-principal-hint').textContent = '';
+  clearResult('ci-result-content');
+  document.querySelectorAll('[data-target="ci-time"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['ci-time'] = 'years';
+});
+
+/* ==========================================
+   EMI
+========================================== */
+function calcAndRenderEMI() {
+  const pRaw    = getInputVal('emi-principal');
+  const rRaw    = getInputVal('emi-rate');
+  const tRaw    = getInputVal('emi-tenure');
+  const timeUnit= timeUnits['emi-tenure'] || 'years';
+
+  const pRes = parseAmount(pRaw);
+  const rRes = parseRate(rRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('emi-principal-err', pRes.error); setInputError('emi-principal', !!pRes.error);
+  setFieldError('emi-rate-err',      rRes.error); setInputError('emi-rate',      !!rRes.error);
+  setFieldError('emi-tenure-err',    tRes.error); setInputError('emi-tenure',    !!tRes.error);
+
+  if (pRes.error || rRes.error || tRes.error) { clearResult('emi-result-content'); return; }
+  try {
+    const n = Math.round(tRes.months);
+    if (n < 1) { setFieldError('emi-tenure-err', 'Tenure must be at least 1 month.'); clearResult('emi-result-content'); return; }
+    const { emi, totalPayment, totalInterest } = calcEMI(pRes.value, rRes.value, n);
+    if (!isFinite(emi)) throw new Error('Result overflow');
+
+    // Principal vs interest percentages
+    const pPct = (pRes.value / totalPayment * 100).toFixed(1);
+    const iPct = (totalInterest / totalPayment * 100).toFixed(1);
+
+    document.getElementById('emi-result-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Monthly EMI</div>
+          <div class="result-value">${formatINR(emi)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Payment</div>
+          <div class="result-value">${formatINR(totalPayment)}</div>
+          <div class="result-sub">EMI × ${n} months</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Interest</div>
+          <div class="result-value">${formatINR(totalInterest)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Loan Amount</div>
+          <div class="result-value">${formatINR(pRes.value)}</div>
+        </div>
+      </div>
+      <div class="chart-wrap mt-2">
+        <div class="chart-title">Principal vs Interest Split</div>
+        <div class="emi-charts">
+          <canvas id="emi-donut" width="160" height="160"></canvas>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#1a6bbb;"></span>
+              Principal: ${formatINR(pRes.value)} (${pPct}%)
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#e07b39;"></span>
+              Interest: ${formatINR(totalInterest)} (${iPct}%)
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    // Draw donut on next frame (canvas must be in DOM)
+    requestAnimationFrame(() => drawDonut('emi-donut', pRes.value, totalInterest));
+  } catch(e) { clearResult('emi-result-content', 'Calculation error: ' + e.message); }
+}
+
+document.getElementById('emi-principal').addEventListener('input', debounce(calcAndRenderEMI, 150));
+document.getElementById('emi-rate').addEventListener('input', debounce(calcAndRenderEMI, 150));
+document.getElementById('emi-tenure').addEventListener('input', debounce(calcAndRenderEMI, 150));
+document.getElementById('emi-calc-btn').addEventListener('click', calcAndRenderEMI);
+document.getElementById('emi-reset-btn').addEventListener('click', () => {
+  ['emi-principal','emi-rate','emi-tenure'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
+  ['emi-principal-err','emi-rate-err','emi-tenure-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('emi-principal-hint').textContent = '';
+  clearResult('emi-result-content');
+  document.querySelectorAll('[data-target="emi-tenure"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['emi-tenure'] = 'years';
+});
+
+/** Draw a simple donut chart on canvas */
+function drawDonut(canvasId, principal, interest) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 8;
+  const total = principal + interest;
+  ctx.clearRect(0, 0, w, h);
+
+  const segments = [
+    { value: principal, color: '#1a6bbb' },
+    { value: interest,  color: '#e07b39' }
+  ];
+  let start = -Math.PI / 2;
+  segments.forEach(seg => {
+    const angle = (seg.value / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + angle);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    start += angle;
+  });
+
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.55, 0, 2 * Math.PI);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // Center text
+  ctx.fillStyle = '#1a3a5c';
+  ctx.font = `bold ${Math.round(r*0.22)}px Inter,Segoe UI,Arial,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Split', cx, cy);
+}
+
+/* ==========================================
+   AMORTIZATION
+========================================== */
+let _amortRows = []; // store for CSV export
+
+function calcAndRenderAmort() {
+  const pRaw    = getInputVal('amort-principal');
+  const rRaw    = getInputVal('amort-rate');
+  const tRaw    = getInputVal('amort-tenure');
+  const timeUnit= timeUnits['amort-tenure'] || 'years';
+
+  const pRes = parseAmount(pRaw);
+  const rRes = parseRate(rRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('amort-principal-err', pRes.error); setInputError('amort-principal', !!pRes.error);
+  setFieldError('amort-rate-err',      rRes.error); setInputError('amort-rate',      !!rRes.error);
+  setFieldError('amort-tenure-err',    tRes.error); setInputError('amort-tenure',    !!tRes.error);
+
+  const resultsDiv = document.getElementById('amort-results');
+  const exportBtn  = document.getElementById('amort-export-btn');
+  const printBtn   = document.getElementById('amort-print-btn');
+
+  if (pRes.error || rRes.error || tRes.error) {
+    resultsDiv.style.display = 'none';
+    exportBtn.style.display = 'none';
+    printBtn.style.display = 'none';
+    _amortRows = [];
+    return;
+  }
+
+  try {
+    const n = Math.round(tRes.months);
+    if (n < 1) { setFieldError('amort-tenure-err', 'Tenure must be at least 1 month.'); resultsDiv.style.display='none'; return; }
+    if (n > 600) { setFieldError('amort-tenure-err', 'Tenure cannot exceed 600 months (50 years).'); resultsDiv.style.display='none'; return; }
+
+    const rows = calcAmortization(pRes.value, rRes.value, n);
+    _amortRows = rows;
+
+    // Totals
+    let totalInterest = 0, totalPrincipal = 0, totalEMI = 0;
+    rows.forEach(r => { totalInterest += r.interest; totalPrincipal += r.principal; totalEMI += r.emi; });
+    // Adjust for final row override
+    totalEMI = rows.reduce((s, r, i) => s + (i === rows.length-1 ? r.opening : r.emi), 0);
+    totalInterest = rows.reduce((s, r) => s + r.interest, 0);
+    totalPrincipal = pRes.value;
+    const { emi } = calcEMI(pRes.value, rRes.value, n);
+
+    // Summary cards
+    document.getElementById('amort-summary-content').innerHTML = `
+      <div class="result-grid">
+        <div class="result-card highlight">
+          <div class="result-label">Monthly EMI</div>
+          <div class="result-value">${formatINR(emi)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Interest Payable</div>
+          <div class="result-value">${formatINR(totalInterest)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Total Amount Paid</div>
+          <div class="result-value">${formatINR(pRes.value + totalInterest)}</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Loan Duration</div>
+          <div class="result-value">${n} months</div>
+        </div>
+      </div>`;
+
+    // Build table using DocumentFragment
+    const frag   = document.createDocumentFragment();
+    const table  = document.createElement('table');
+    table.setAttribute('aria-label', 'Amortization schedule');
+
+    // Header
+    const thead = document.createElement('thead');
+    thead.innerHTML = `<tr>
+      <th scope="col">Month</th>
+      <th scope="col">Opening Balance</th>
+      <th scope="col">Interest</th>
+      <th scope="col">Principal Repaid</th>
+      <th scope="col">EMI</th>
+      <th scope="col">Closing Balance</th>
+    </tr>`;
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.month}</td>
+        <td>${formatINR(row.opening)}</td>
+        <td>${formatINR(row.interest)}</td>
+        <td>${formatINR(row.principal)}</td>
+        <td>${formatINR(row.emi)}</td>
+        <td>${formatINR(row.closing)}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    // Footer totals
+    const tfoot = document.createElement('tfoot');
+    tfoot.innerHTML = `<tr>
+      <td>Total</td>
+      <td>—</td>
+      <td>${formatINR(totalInterest)}</td>
+      <td>${formatINR(totalPrincipal)}</td>
+      <td>—</td>
+      <td>₹0.00</td>
+    </tr>`;
+    table.appendChild(tfoot);
+    frag.appendChild(table);
+
+    document.getElementById('amort-table-content').innerHTML = '';
+    const scrollDiv = document.createElement('div');
+    scrollDiv.className = 'table-scroll';
+    scrollDiv.appendChild(frag);
+    document.getElementById('amort-table-content').appendChild(scrollDiv);
+
+    resultsDiv.style.display = 'block';
+    exportBtn.style.display  = '';
+    printBtn.style.display   = '';
+
+    // Chart
+    requestAnimationFrame(() => drawAmortChart('amort-chart', rows));
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('amort-summary-content').innerHTML = `<p style="color:var(--error)">Calculation error: ${e.message}</p>`;
+  }
+}
+
+/** Draw amortization closing balance line chart */
+function drawAmortChart(canvasId, rows) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 32;
+  const H = 200;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 20, right: 20, bottom: 40, left: 70 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top  - pad.bottom;
+
+  const maxVal = rows[0].opening;
+  const n = rows.length;
+
+  // Grid lines
+  ctx.strokeStyle = '#e8ecf3'; ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.top + (ch / 4) * g;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    // Label
+    ctx.fillStyle = '#718096'; ctx.font = '11px Inter,Segoe UI,Arial,sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const lblVal = maxVal * (1 - g/4);
+    ctx.fillText(shortFmt(lblVal), pad.left - 6, y);
+  }
+
+  // X axis labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const xStep = Math.max(1, Math.floor(n / 6));
+  for (let i = 0; i < n; i += xStep) {
+    const x = pad.left + (i / (n-1)) * cw;
+    ctx.fillStyle = '#718096';
+    ctx.fillText(String(rows[i].month), x, pad.top + ch + 6);
+  }
+  // Last label
+  ctx.fillText(String(rows[n-1].month), pad.left + cw, pad.top + ch + 6);
+
+  // Axis label
+  ctx.fillStyle = '#4a5568'; ctx.font = 'bold 11px Inter,Segoe UI,Arial,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Month', pad.left + cw/2, H - 4);
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#1a6bbb'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  rows.forEach((row, i) => {
+    const x = pad.left + (i / (n-1)) * cw;
+    const y = pad.top  + (1 - row.closing / maxVal) * ch;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill under line
+  ctx.lineTo(pad.left + cw, pad.top + ch);
+  ctx.lineTo(pad.left, pad.top + ch);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(26,107,187,0.08)';
+  ctx.fill();
+}
+
+function shortFmt(val) {
+  if (val >= 1e7) return (val/1e7).toFixed(1)+'Cr';
+  if (val >= 1e5) return (val/1e5).toFixed(1)+'L';
+  if (val >= 1e3) return (val/1e3).toFixed(0)+'K';
+  return val.toFixed(0);
+}
+
+document.getElementById('amort-calc-btn').addEventListener('click', calcAndRenderAmort);
+document.getElementById('amort-principal').addEventListener('input', debounce(calcAndRenderAmort, 150));
+document.getElementById('amort-rate').addEventListener('input', debounce(calcAndRenderAmort, 150));
+document.getElementById('amort-tenure').addEventListener('input', debounce(calcAndRenderAmort, 150));
+document.getElementById('amort-reset-btn').addEventListener('click', () => {
+  ['amort-principal','amort-rate','amort-tenure'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('error'); });
+  ['amort-principal-err','amort-rate-err','amort-tenure-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('amort-principal-hint').textContent = '';
+  document.getElementById('amort-results').style.display = 'none';
+  document.getElementById('amort-export-btn').style.display = 'none';
+  document.getElementById('amort-print-btn').style.display = 'none';
+  document.querySelectorAll('[data-target="amort-tenure"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['amort-tenure'] = 'years';
+  _amortRows = [];
+});
+
+document.getElementById('amort-export-btn').addEventListener('click', () => {
+  if (!_amortRows.length) return;
+  const headers = ['Month','Opening Balance','Interest','Principal Repaid','EMI','Closing Balance'];
+  const lines = [headers.join(',')];
+  _amortRows.forEach(r => {
+    lines.push([r.month, csvNum(r.opening), csvNum(r.interest), csvNum(r.principal), csvNum(r.emi), csvNum(r.closing)].join(','));
+  });
+  downloadCSV('amortization_schedule.csv', lines.join('\r\n'));
+});
+
+document.getElementById('amort-print-btn').addEventListener('click', () => {
+  document.body.setAttribute('data-print-date', new Date().toLocaleString('en-IN'));
+  window.print();
+});
+
+/* ==========================================
+   SCENARIO ANALYSIS
+========================================== */
+let scenarioRates = [8, 10, 12, 15]; // store as percentages
+let _scRows = []; // for CSV
+
+function renderRateTags() {
+  const container = document.getElementById('sc-rate-tags');
+  container.innerHTML = '';
+  scenarioRates.forEach(rate => {
+    const tag = document.createElement('span');
+    tag.className = 'scenario-tag';
+    tag.innerHTML = `${rate}% <button class="remove-btn" aria-label="Remove ${rate}% scenario" data-rate="${rate}">&#x2715;</button>`;
+    container.appendChild(tag);
+  });
+  container.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = parseFloat(btn.dataset.rate);
+      scenarioRates = scenarioRates.filter(x => x !== r);
+      renderRateTags();
+      debounce(calcAndRenderScenario, 150)();
+    });
+  });
+}
+renderRateTags();
+
+document.getElementById('sc-add-rate-btn').addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('sc-custom-rate').value);
+  setFieldError('sc-rate-err', '');
+  if (isNaN(val) || val < 0 || val > 100) {
+    setFieldError('sc-rate-err', 'Enter a rate between 0 and 100.');
+    return;
+  }
+  const rounded = Math.round(val * 100) / 100;
+  if (scenarioRates.includes(rounded)) {
+    setFieldError('sc-rate-err', `${rounded}% is already in the list.`);
+    return;
+  }
+  scenarioRates.push(rounded);
+  scenarioRates.sort((a,b) => a-b);
+  document.getElementById('sc-custom-rate').value = '';
+  renderRateTags();
+  debounce(calcAndRenderScenario, 150)();
+});
+
+function calcAndRenderScenario() {
+  const aRaw    = getInputVal('sc-amount');
+  const tRaw    = getInputVal('sc-tenure');
+  const m       = parseInt(getInputVal('sc-freq')) || 12;
+  const timeUnit= timeUnits['sc-tenure'] || 'years';
+
+  const aRes = parseAmount(aRaw);
+  const tRes = parseTime(tRaw, timeUnit);
+
+  setFieldError('sc-amount-err', aRes.error); setInputError('sc-amount', !!aRes.error);
+  setFieldError('sc-tenure-err', tRes.error); setInputError('sc-tenure', !!tRes.error);
+
+  const resultsDiv = document.getElementById('sc-results');
+  const exportBtn  = document.getElementById('sc-export-btn');
+  const printBtn   = document.getElementById('sc-print-btn');
+
+  if (aRes.error || tRes.error || scenarioRates.length === 0) {
+    resultsDiv.style.display = 'none';
+    exportBtn.style.display  = 'none';
+    printBtn.style.display   = 'none';
+    _scRows = [];
+    return;
+  }
+
+  try {
+    const results = scenarioRates.map(rate => calcScenario(aRes.value, rate/100, tRes.years, m));
+    _scRows = results;
+
+    // Find best loan (lowest interest) and best investment (highest FV)
+    const bestLoanIdx   = results.reduce((bi, r, i) => r.totalInterest < results[bi].totalInterest ? i : bi, 0);
+    const bestInvestIdx = results.reduce((bi, r, i) => r.fv > results[bi].fv ? i : bi, 0);
+
+    // Loan table
+    let loanHtml = `<div class="compare-table-wrap"><table class="compare-table" aria-label="Loan comparison">
+      <thead><tr>
+        <th scope="col" style="text-align:left">Rate</th>
+        <th scope="col">Monthly EMI</th>
+        <th scope="col">Total Payment</th>
+        <th scope="col">Total Interest</th>
+      </tr></thead><tbody>`;
+    results.forEach((r, i) => {
+      const cls = i === bestLoanIdx ? ' class="best-loan"' : '';
+      loanHtml += `<tr${cls}>
+        <td style="text-align:left;font-weight:600">${r.rate*100}%${i===bestLoanIdx?' ★':''}</td>
+        <td>${formatINR(r.emi)}</td>
+        <td>${formatINR(r.totalPayment)}</td>
+        <td>${formatINR(r.totalInterest)}</td>
+      </tr>`;
+    });
+    loanHtml += '</tbody></table></div>';
+    if (bestLoanIdx !== -1) loanHtml += `<p class="text-muted mt-1">★ Lowest-cost loan: ${results[bestLoanIdx].rate*100}% rate</p>`;
+
+    // Investment table
+    let invHtml = `<div class="compare-table-wrap"><table class="compare-table" aria-label="Investment comparison">
+      <thead><tr>
+        <th scope="col" style="text-align:left">Rate</th>
+        <th scope="col">Future Value</th>
+        <th scope="col">Total Gain</th>
+      </tr></thead><tbody>`;
+    results.forEach((r, i) => {
+      const cls = i === bestInvestIdx ? ' class="best-invest"' : '';
+      invHtml += `<tr${cls}>
+        <td style="text-align:left;font-weight:600">${r.rate*100}%${i===bestInvestIdx?' ★':''}</td>
+        <td>${formatINR(r.fv)}</td>
+        <td>${formatINR(r.gain)}</td>
+      </tr>`;
+    });
+    invHtml += '</tbody></table></div>';
+    if (bestInvestIdx !== -1) invHtml += `<p class="text-muted mt-1">★ Highest-return investment: ${results[bestInvestIdx].rate*100}% rate</p>`;
+
+    document.getElementById('sc-loan-content').innerHTML   = loanHtml;
+    document.getElementById('sc-invest-content').innerHTML = invHtml;
+    resultsDiv.style.display = 'block';
+    exportBtn.style.display  = '';
+    printBtn.style.display   = '';
+
+    requestAnimationFrame(() => drawScenarioChart('sc-chart', results, bestLoanIdx, bestInvestIdx));
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('sc-loan-content').innerHTML = `<p style="color:var(--error)">Calculation error: ${e.message}</p>`;
+  }
+}
+
+/** Draw grouped bar chart for scenario analysis */
+function drawScenarioChart(canvasId, results, bestLoanIdx, bestInvestIdx) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 32;
+  const H = 220;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 30, right: 20, bottom: 50, left: 75 };
+  const cw  = W - pad.left - pad.right;
+  const ch  = H - pad.top  - pad.bottom;
+
+  const n  = results.length;
+  const maxVal = Math.max(...results.map(r => Math.max(r.totalInterest, r.gain)));
+  const yScale = ch / maxVal;
+
+  const groupW = cw / n;
+  const barW   = Math.min(groupW * 0.35, 28);
+  const gap    = 4;
+
+  // Grid
+  ctx.strokeStyle = '#e8ecf3'; ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.top + (ch/4) * g;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+    ctx.fillStyle = '#718096'; ctx.font = '10px Inter,Segoe UI,Arial';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(shortFmt(maxVal*(1-g/4)), pad.left - 5, y);
+  }
+
+  results.forEach((r, i) => {
+    const cx = pad.left + (i + 0.5) * groupW;
+
+    // Bar 1: Total Interest (loan cost — navy)
+    const h1 = r.totalInterest * yScale;
+    const x1 = cx - barW - gap/2;
+    ctx.fillStyle = i === bestLoanIdx ? '#1a3a5c' : '#5a8dbf';
+    ctx.fillRect(x1, pad.top + ch - h1, barW, h1);
+
+    // Bar 2: Gain (investment — orange)
+    const h2 = r.gain * yScale;
+    const x2 = cx + gap/2;
+    ctx.fillStyle = i === bestInvestIdx ? '#c05a20' : '#e09050';
+    ctx.fillRect(x2, pad.top + ch - h2, barW, h2);
+
+    // X label (rate %)
+    ctx.fillStyle = '#1a3a5c'; ctx.font = `bold 11px Inter,Segoe UI,Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText((r.rate*100).toFixed(2).replace(/\.00$/,'') + '%', cx, pad.top + ch + 8);
+  });
+
+  // Legend
+  const legends = [
+    { color: '#5a8dbf', label: 'Total Interest (Loan)' },
+    { color: '#e09050', label: 'Total Gain (Investment)' }
+  ];
+  legends.forEach((l, i) => {
+    ctx.fillStyle = l.color;
+    ctx.fillRect(pad.left + i * 180, 8, 12, 12);
+    ctx.fillStyle = '#4a5568'; ctx.font = '11px Inter,Segoe UI,Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(l.label, pad.left + i * 180 + 16, 9);
+  });
+}
+
+document.getElementById('sc-amount').addEventListener('input', debounce(calcAndRenderScenario, 150));
+document.getElementById('sc-tenure').addEventListener('input', debounce(calcAndRenderScenario, 150));
+document.getElementById('sc-freq').addEventListener('change', calcAndRenderScenario);
+document.getElementById('sc-calc-btn').addEventListener('click', calcAndRenderScenario);
+document.getElementById('sc-reset-btn').addEventListener('click', () => {
+  ['sc-amount','sc-tenure','sc-custom-rate'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id) && document.getElementById(id).classList.remove('error'); });
+  ['sc-amount-err','sc-tenure-err','sc-rate-err'].forEach(id => setFieldError(id, ''));
+  document.getElementById('sc-amount-hint').textContent = '';
+  document.getElementById('sc-freq').value = '12';
+  scenarioRates = [8, 10, 12, 15];
+  renderRateTags();
+  document.getElementById('sc-results').style.display = 'none';
+  document.getElementById('sc-export-btn').style.display = 'none';
+  document.getElementById('sc-print-btn').style.display = 'none';
+  document.querySelectorAll('[data-target="sc-tenure"]').forEach((b,i) => b.classList.toggle('active', i===0));
+  timeUnits['sc-tenure'] = 'years';
+  _scRows = [];
+});
+
+document.getElementById('sc-export-btn').addEventListener('click', () => {
+  if (!_scRows.length) return;
+  const headers = ['Rate (%)','Monthly EMI','Total Payment','Total Interest','Future Value','Total Gain'];
+  const lines = [headers.join(',')];
+  _scRows.forEach(r => {
+    lines.push([(r.rate*100).toFixed(2), csvNum(r.emi), csvNum(r.totalPayment), csvNum(r.totalInterest), csvNum(r.fv), csvNum(r.gain)].join(','));
+  });
+  downloadCSV('scenario_analysis.csv', lines.join('\r\n'));
+});
+
+document.getElementById('sc-print-btn').addEventListener('click', () => {
+  document.body.setAttribute('data-print-date', new Date().toLocaleString('en-IN'));
+  window.print();
+});
+
+/* ===================================================================
+   5. SELF-TEST SUITE
+   Run from browser console: runSelfTests()
+   Tests all accuracy cases specified in the brief.
+=================================================================== */
+
+function assert(condition, testName, expected, actual) {
+  const status = condition ? 'PASS' : 'FAIL';
+  const style  = condition ? 'color:green;font-weight:bold' : 'color:red;font-weight:bold';
+  console.log(`%c[${status}] ${testName}`, style);
+  if (!condition) {
+    console.log(`       Expected: ${expected}`);
+    console.log(`       Actual:   ${actual}`);
+  }
+  return condition;
+}
+
+function approxEq(a, b, tol) {
+  tol = tol ?? 0.5; // default ₹0.50 tolerance
+  return Math.abs(a - b) <= tol;
+}
+
+window.runSelfTests = function() {
+  console.group('%cTVM Calculator — Self-Test Suite', 'font-size:14px;font-weight:bold;color:#1a3a5c');
+  let pass = 0, fail = 0;
+
+  function test(name, condition, exp, act) {
+    const ok = assert(condition, name, exp, act);
+    ok ? pass++ : fail++;
+  }
+
+  /* --- FV --- */
+  const fv1 = calcFV(100000, 0.10, 5, 1);
+  test(
+    'FV: ₹1,00,000 @ 10% for 5 years (annual) → ₹1,61,051.00',
+    approxEq(fv1.fv, 161051.00, 0.50),
+    161051.00, fv1.fv.toFixed(2)
+  );
+
+  /* --- PV --- */
+  const pv1 = calcPV(100000, 0.10, 5, 1);
+  test(
+    'PV: FV ₹1,00,000 @ 10% for 5 years (annual) → ₹62,092.13',
+    approxEq(pv1.pv, 62092.13, 0.50),
+    62092.13, pv1.pv.toFixed(2)
+  );
+
+  /* --- SI --- */
+  const si1 = calcSI(100000, 0.08, 3);
+  test(
+    'SI: ₹1,00,000 @ 8% for 3 years → Interest ₹24,000',
+    approxEq(si1.si, 24000, 0.01),
+    24000, si1.si.toFixed(2)
+  );
+  test(
+    'SI: Maturity → ₹1,24,000',
+    approxEq(si1.maturity, 124000, 0.01),
+    124000, si1.maturity.toFixed(2)
+  );
+
+  /* --- CI --- */
+  const ci1 = calcCI(100000, 0.10, 5, 1);
+  test(
+    'CI: ₹1,00,000 @ 10% for 5 years (annual) → CI ₹61,051.00',
+    approxEq(ci1.ci, 61051.00, 0.50),
+    61051.00, ci1.ci.toFixed(2)
+  );
+  test(
+    'CI: Maturity → ₹1,61,051.00',
+    approxEq(ci1.maturity, 161051.00, 0.50),
+    161051.00, ci1.maturity.toFixed(2)
+  );
+
+  /* --- EMI --- */
+  const emi1 = calcEMI(1000000, 0.10, 60);
+  test(
+    'EMI: ₹10,00,000 @ 10% for 60 months → ≈ ₹21,247.05',
+    approxEq(emi1.emi, 21247.05, 0.50),
+    21247.05, emi1.emi.toFixed(2)
+  );
+  test(
+    'EMI: Total Payment → ≈ ₹12,74,823',
+    approxEq(emi1.totalPayment, 1274823, 1.00),
+    1274823, emi1.totalPayment.toFixed(2)
+  );
+  test(
+    'EMI: Total Interest → ≈ ₹2,74,823',
+    approxEq(emi1.totalInterest, 274823, 1.00),
+    274823, emi1.totalInterest.toFixed(2)
+  );
+
+  /* --- Zero-rate loan --- */
+  const emi0 = calcEMI(120000, 0, 12);
+  test(
+    'Zero-rate: ₹1,20,000 @ 0% for 12 months → EMI ₹10,000',
+    approxEq(emi0.emi, 10000, 0.01),
+    10000, emi0.emi.toFixed(2)
+  );
+  test(
+    'Zero-rate: Total Interest → ₹0',
+    approxEq(emi0.totalInterest, 0, 0.01),
+    0, emi0.totalInterest.toFixed(2)
+  );
+
+  /* --- Amortization --- */
+  const amRows = calcAmortization(1000000, 0.10, 60);
+  test(
+    'Amortization: exactly 60 rows',
+    amRows.length === 60,
+    60, amRows.length
+  );
+  test(
+    'Amortization: first-month interest = ₹8,333.33',
+    approxEq(amRows[0].interest, 8333.33, 0.50),
+    8333.33, amRows[0].interest.toFixed(2)
+  );
+  test(
+    'Amortization: final closing balance = ₹0.00',
+    amRows[amRows.length - 1].closing === 0,
+    0, amRows[amRows.length - 1].closing
+  );
+  test(
+    'Amortization: final balance is not -0 or 0.01',
+    amRows[amRows.length - 1].closing === 0 && 1/amRows[amRows.length - 1].closing === Infinity,
+    0, amRows[amRows.length - 1].closing
+  );
+
+  console.log(`\n%c${pass} passed, ${fail} failed.`, `font-weight:bold;color:${fail===0?'green':'red'}`);
+  console.groupEnd();
+  return { pass, fail };
+};
+
+/* --- Set print date attribute dynamically --- */
+document.body.setAttribute('data-print-date', new Date().toLocaleString('en-IN'));
+
+/* --- Run self-tests silently on load (results in console) --- */
+// Uncomment the line below to auto-run on page load:
+// window.addEventListener('load', () => setTimeout(runSelfTests, 200));
+
+</script>
+</body>
+</html>
